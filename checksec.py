@@ -5,6 +5,7 @@ import threading
 
 from cryptography import x509
 from cryptography.hazmat.primitives.serialization import Encoding, PublicFormat
+from cryptography.hazmat.backends import default_backend
 
 
 def get_info_cipher_suites(ssock: ssl.SSLSocket):
@@ -14,12 +15,12 @@ def get_info_cipher_suites(ssock: ssl.SSLSocket):
     list of ciphers that the server supports, in the form of a list of
     strings.
     """
-
-    # TODO
+    current = ssock.cipher()
+    ciphers = [cipher[0] for cipher in ssock.shared_ciphers()]
 
     return {
-        'using': 'TODO',
-        'ciphers': ['TODO'],
+        'using': current[0],
+        'ciphers': ciphers,
     }
 
 def get_info_certificate(ssock: ssl.SSLSocket):
@@ -30,12 +31,15 @@ def get_info_certificate(ssock: ssl.SSLSocket):
     socket.
     """
 
-    # TODO
+    cert = ssock.getpeercert()
+
+    if cert == None:
+        print("INVALID CERT, WE ARE SUPPOSED TO DO SOMETHING HERE BUT NEED TO FIGURE OUT EXAMPLE")
 
     return {
-        'version': 'TODO',
-        'notBefore': 'TODO',
-        'notAfter': 'TODO',
+        'version': cert['version'],
+        'notBefore': cert['notBefore'],
+        'notAfter': cert['notAfter'],
     }
 
 def get_info_names_subject(ssock: ssl.SSLSocket):
@@ -49,12 +53,11 @@ def get_info_names_subject(ssock: ssl.SSLSocket):
         'altNames': [('DNS', 'www.ubc.ca'), ('DNS', 'ubc.ca')]
     }
     """
-
-    # TODO
+    cert = ssock.getpeercert()
 
     return {
-        'names': 'TODO',
-        'altNames': 'TODO',
+        'names': [el for tup in cert['subject'] for el in tup],
+        'altNames': list(cert['subjectAltName']),
     }
 
 def get_info_names_issuer(ssock: ssl.SSLSocket):
@@ -65,9 +68,10 @@ def get_info_names_issuer(ssock: ssl.SSLSocket):
     [('countryName', 'US'), ('organizationName', 'Entrust, Inc.')]
     """
 
-    # TODO
+    cert = ssock.getpeercert()
 
-    return None
+    return [el for tup in cert['issuer'] for el in tup]
+
 
 def get_info_public_key(ssock: ssl.SSLSocket):
     """This function receives a secure socket and returns the public key
@@ -75,9 +79,10 @@ def get_info_public_key(ssock: ssl.SSLSocket):
     cryptography library for this.
     """
 
-    # TODO
+    cert = ssock.getpeercert(binary_form=True)
+    newCert = x509.load_der_x509_certificate(cert, backend=default_backend())
 
-    return None
+    return newCert.public_key().public_bytes(Encoding.PEM, PublicFormat.SubjectPublicKeyInfo).decode()
 
 def print_cert_info(ssock: ssl.SSLSocket):
     """Prints the certificate info. Do not change this function.
@@ -148,7 +153,29 @@ def main():
     print()
 
     # open connection
-    # TODO
+    context = ssl.create_default_context()
+    try:
+        with socket.create_connection((hostname, port)) as sock:
+            with context.wrap_socket(sock, server_hostname=hostname) as ssock:
+                ssock.do_handshake()
+                print_cert_info(ssock)
+                for line in sys.stdin:
+                    if 'close' == line.strip():
+                        ssock.close()
+                        return
+                    ssock.sendall(line.strip().encode())
+                    rec = ""
+                    while True:
+                        stuff = ssock.recv(2056)
+                        if (not stuff):
+                            break
+                        rec += stuff.decode()
+                    print(rec)
+    except ssl.SSLError:
+        print("The certificate for this location is invalid.")
+
+
+
 
 
 if __name__ == '__main__':
