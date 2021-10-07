@@ -14,24 +14,30 @@ def malproxy(path):
     parsed = urlparse(WEBSITE)
     if(not parsed.scheme):
         WEBSITE = f'https://{WEBSITE}'
-    print(WEBSITE)
-    print(path)
-    try:
-        r = requests.request(request.method, f'{WEBSITE}{path}')
-        return r.content
-    except Exception:
-        pass
+    r = requests.request(request.method, f'{WEBSITE}{path}')
+    return r.content
+
+@app.route('/undergraduate-students/', methods=['GET'])
+def proxyund():
+    return('hello')
+
 
 @app.route('/<path:path>', methods=['POST', 'GET'])
 def proxycont(path):
-    print(request.headers)
-    myheader = request.headers
-    myheader["Referer"] = f'{WEBSITE}'
-    print(myheader)
-    try:
-        return requests.request(request.method, f'{WEBSITE}{path}', dict(request.headers), request.form).content
-    except Exception:
-        pass
+    ## Attempting to impersonate client, perhaps continue trying
+    # headers = {}
+    # for pair in request.headers:
+    #     headers[pair[0]] = pair[1]
+    # headers['Referer'] = f'{WEBSITE}'
+    # headers['Host'] = f'{WEBSITE}'
+    # print(f'{WEBSITE}/{path}')
+
+    s = requests.Session()
+    s.headers.update({'Referer':'https://www.ubc.ca/'})
+    s.headers.update({':path':f'{path}'})
+    print(s.headers)
+    r = requests.request(request.method, f'{WEBSITE}/{path}')
+    return r.content
 
     
 
